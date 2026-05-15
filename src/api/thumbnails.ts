@@ -62,8 +62,6 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
   if (mediaType !== "image/jpeg" && mediaType !== "image/png")
     throw new BadRequestError("Unsupported media type");
 
-  const data = await file.arrayBuffer();
-
   const video = getVideo(cfg.db, videoId);
 
   if (!video) {
