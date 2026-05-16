@@ -49,7 +49,9 @@ export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
 
   const localFile = Bun.file(localFilePath);
 
-  const s3File = cfg.s3Client.file(fileKey, {
+  const aspectRatio = await getVideoAspectRatio(localFilePath);
+
+  const s3File = cfg.s3Client.file(`${aspectRatio}/${fileKey}`, {
     bucket: cfg.s3Bucket,
     region: cfg.s3Region,
     type: videoType,
@@ -63,4 +65,45 @@ export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
   await Bun.file(localFilePath).delete();
 
   return respondWithJSON(200, null);
+}
+
+export async function getVideoAspectRatio(filePath: string) {
+  const proc = Bun.spawn(
+    [
+      "ffprobe",
+      "-v",
+      "error",
+      "-select_streams",
+      "v:0",
+      "-show_entries",
+      "stream=width,height",
+      "-of",
+      "json",
+      filePath,
+    ],
+    {
+      stderr: "pipe",
+      stdout: "pipe",
+    },
+  );
+  const stdoutText = await new Response(proc.stdout).text();
+  const stderrText = await new Response(proc.stderr).text();
+
+  if (stderrText) {
+    console.error("ffprobe error:", stderrText);
+    throw new Error("Failed to get video aspect ratio");
+  }
+
+  const ffprobeOutput = JSON.parse(stdoutText);
+  const stream = ffprobeOutput.streams[0];
+  if (!stream) {
+    throw new Error("No video stream found");
+  }
+
+  const { width, height } = stream;
+  if (!width || !height) {
+    throw new Error("Invalid video dimensions");
+  }
+
+  return `${Math.floor(width)}:${Math.floor(height)}`;
 }
