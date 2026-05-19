@@ -60,7 +60,7 @@ export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
   const buffer = await localFile.arrayBuffer();
   await s3File.write(buffer);
 
-  video.videoURL = fileKey;
+  video.videoURL = `${cfg.s3CfDistribution}/${fileKey}`;
   updateVideo(cfg.db, video);
   await Bun.file(processedFilePath).delete();
   await Bun.file(localFilePath).delete();
@@ -134,23 +134,4 @@ export async function processVideoForFastStart(inputFilePath: string) {
   }
 
   return outputFilePath;
-}
-
-export function generatePresignedURL(
-  cfg: ApiConfig,
-  key: string,
-  expireTime: number,
-) {
-  const url = cfg.s3Client.presign(key, {
-    bucket: cfg.s3Bucket,
-    region: cfg.s3Region,
-    expiresIn: expireTime,
-  });
-  return url;
-}
-
-export async function dbVideoToSignedVideo(cfg: ApiConfig, video: Video) {
-  const url = generatePresignedURL(cfg, video.videoURL!, 3600);
-  video.videoURL = url;
-  return video;
 }

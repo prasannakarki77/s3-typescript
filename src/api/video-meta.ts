@@ -4,7 +4,6 @@ import { createVideo, deleteVideo, getVideo, getVideos } from "../db/videos";
 import { respondWithJSON } from "./json";
 import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors";
 import type { BunRequest } from "bun";
-import { dbVideoToSignedVideo } from "./videos";
 
 export async function handlerVideoMetaCreate(cfg: ApiConfig, req: Request) {
   const token = getBearerToken(req.headers);
@@ -56,14 +55,7 @@ export async function handlerVideoGet(cfg: ApiConfig, req: BunRequest) {
     throw new NotFoundError("Couldn't find video");
   }
 
-  const videoToReturn = { ...video };
-  if (video.videoURL) {
-    videoToReturn.videoURL = (
-      await dbVideoToSignedVideo(cfg, { ...video })
-    ).videoURL;
-  }
-
-  return respondWithJSON(200, videoToReturn);
+  return respondWithJSON(200, video);
 }
 
 export async function handlerVideosRetrieve(cfg: ApiConfig, req: Request) {
@@ -72,15 +64,5 @@ export async function handlerVideosRetrieve(cfg: ApiConfig, req: Request) {
 
   const videos = getVideos(cfg.db, userID);
 
-  const videosWithSignedURLs = await Promise.all(
-    videos.map(async (video) => {
-      if (!video.videoURL) return video;
-      return {
-        ...video,
-        videoURL: (await dbVideoToSignedVideo(cfg, { ...video })).videoURL,
-      };
-    }),
-  );
-
-  return respondWithJSON(200, videosWithSignedURLs);
+  return respondWithJSON(200, videos);
 }
